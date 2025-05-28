@@ -1,0 +1,26 @@
+# Object Detection Configuration
+
+# Camera settings
+camera:
+  endpoint: "http://0.0.0.0:8080/rear" # Compatible with cam_point
+  check_interval_minutes: 5  # How often to check for objects
+
+# Detection settings
+detection:
+  trigger_words: # List of trigger words to detect
+    - "cat"
+    - "kitten"
+
+# Telegram notification settings
+telegram:
+  bot_token: "YOUR_BOT_TOKEN"
+  # List of user IDs to notify
+  notify_users:
+    - YOUR_USER_ID
+    - YOUR_USER_ID
+
+# Application settings
+app:
+  log_file: ".log"
+  save_detected_images: true
+  image_save_path: "detected_objects"

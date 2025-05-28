@@ -1,0 +1,7 @@
+venv/
+cache/
+*.log
+__pycache__
+config.yaml
+detected_objects/
+interrogate.log
