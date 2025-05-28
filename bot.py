@@ -160,7 +160,7 @@ class ObjectDetector:
         logger.info(f"Manual detection triggered by user {username} (ID: {user_id})")
         
         # Run detection in a separate thread to avoid blocking
-        threading.Thread(target=self.check_for_objects, kwargs={'manual': True, 'requested_by': user_id}).start()
+        threading.Thread(target=self.check_for_objects, kwargs={'manual': True, 'requested_by': user_id, 'explicit_request': True}).start()
             
     def capture_image(self):
         """Capture image from the camera endpoint."""
@@ -231,9 +231,18 @@ class ObjectDetector:
             )
             
     def save_image(self, image_data, detection_result):
-        """Save the image if an object was detected."""
+        """Save the image."""
         if not self.config['app'].get('save_detected_images', False):
-            return None
+            # Create a temporary file for sending photos even if saving is disabled
+            try:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                temp_filepath = Path("temp_detection_image.jpg")
+                with open(temp_filepath, 'wb') as f:
+                    f.write(image_data)
+                return temp_filepath
+            except Exception as e:
+                logger.error(f"Failed to create temporary image: {e}")
+                return None
             
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -326,9 +335,9 @@ class ObjectDetector:
         """Manually trigger object detection."""
         logger.info("Manual object detection triggered by keyboard input")
         # Run in a separate thread to avoid blocking the main thread
-        threading.Thread(target=self.check_for_objects, kwargs={'manual': True}).start()
+        threading.Thread(target=self.check_for_objects, kwargs={'manual': True, 'explicit_request': False}).start()
     
-    def check_for_objects(self, manual=False, requested_by=None):
+    def check_for_objects(self, manual=False, requested_by=None, explicit_request=False):
         """Main function to check for objects and send notifications."""
         if manual:
             logger.info("Starting manual object detection cycle")
@@ -355,24 +364,36 @@ class ObjectDetector:
         # Detect objects
         detection_result = self.detect_object(image_data)
         
+        # Save image regardless of detection result if it's an explicit request
+        image_path = None
+        if explicit_request or detection_result.object_detected:
+            image_path = self.save_image(image_data, detection_result)
+        
         # Check if any trigger word was detected
         if detection_result.object_detected:
-            # Save image if configured
-            image_path = self.save_image(image_data, detection_result)
-            
             # Send notification
             logger.info(f"{detection_result.trigger_word} detected! Sending notifications...")
             self.send_telegram_notification(detection_result, image_path, requested_by)
         else:
-            logger.info("No trigger words detected in the image. No notification sent.")
+            logger.info("No trigger words detected in the image.")
             
             # If this was a manual detection, notify the requester
             if requested_by:
                 try:
+                    message = f"❌ No {', '.join(self.config['detection']['trigger_words'])} detected in the image.\n\nCaption: {detection_result.caption}"
                     self.telegram_bot.send_message(
                         chat_id=requested_by,
-                        text=f"❌ No {', '.join(self.config['detection']['trigger_words'])} detected in the image.\n\nCaption: {detection_result.caption}"
+                        text=message
                     )
+                    
+                    # Always send the image if it was an explicit request
+                    if explicit_request and image_path:
+                        with open(image_path, 'rb') as photo:
+                            self.telegram_bot.send_photo(
+                                chat_id=requested_by,
+                                photo=photo,
+                                caption="Current camera view"
+                            )
                 except Exception as e:
                     logger.error(f"Failed to send negative result notification: {e}")
             
@@ -387,7 +408,7 @@ class ObjectDetector:
         # Schedule regular checks
         interval_minutes = self.config['camera'].get('check_interval_minutes', 5)
         logger.info(f"Scheduling object detection every {interval_minutes} minutes")
-        schedule.every(interval_minutes).minutes.do(lambda: self.check_for_objects(manual=False))
+        schedule.every(interval_minutes).minutes.do(lambda: self.check_for_objects(manual=False, explicit_request=False))
         
         # Start keyboard listener in a separate thread
         keyboard_thread = threading.Thread(target=self.keyboard_listener)
@@ -396,7 +417,7 @@ class ObjectDetector:
         
         # Run once immediately
         logger.info("Running initial object detection")
-        self.check_for_objects()
+        self.check_for_objects(manual=False, explicit_request=False)
         
         # Keep the script running
         logger.info("Object Detector is running. Press 'd' to manually trigger object detection. Press Ctrl+C to stop.")
