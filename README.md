@@ -1,10 +1,10 @@
-# 🔍 Object Detector
+# 🔍 TeleSpotter
 
 A camera-based object detection system that notifies you via Telegram when specific objects (like cats) are detected in camera images.
 
 ## Overview
 
-Object Detector periodically captures images from a camera endpoint, uses image captioning to detect specified objects in the image, and sends notifications via Telegram Bot API when trigger words are detected in the caption.
+TeleSpotter periodically captures images from a camera endpoint, uses image captioning to detect specified objects in the image, and sends notifications via Telegram Bot API when trigger words are detected in the caption.
 
 ## Features
 
@@ -27,8 +27,8 @@ Object Detector periodically captures images from a camera endpoint, uses image 
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/object-detector.git
-   cd object-detector
+   git clone https://github.com/yourusername/tele_spotter.git
+   cd tele_spotter
    ```
 
 2. Run the setup script to create a virtual environment and install dependencies:
@@ -47,7 +47,7 @@ Object Detector periodically captures images from a camera endpoint, uses image 
 
 ## Configuration
 
-Edit `config.yaml` to customize your Object Detector:
+Edit `config.yaml` to customize your TeleSpotter:
 
 ```yaml
 # Camera settings
@@ -78,7 +78,7 @@ app:
 ## Usage
 
 1. Make sure your camera endpoint is accessible (e.g., [cam_point](https://github.com/sanyabeast/cam_point) is running)
-2. Run Object Detector:
+2. Run TeleSpotter:
    ```
    python bot.py
    ```
@@ -93,7 +93,7 @@ app:
 
 ## Telegram Bot Commands
 
-The application provides a Telegram bot with the following commands:
+TeleSpotter provides a Telegram bot with the following commands:
 
 - `/start` - Start receiving notifications
 - `/help` - Show help information
