@@ -259,7 +259,7 @@ class ObjectDetector:
             logger.error(f"Failed to save image: {e}")
             return None
             
-    def send_telegram_notification(self, detection_result, image_path=None, requested_by=None):
+    def send_telegram_notification(self, detection_result, image_path=None, requested_by=None, notify_all=True):
         """Send notification to Telegram users."""
         try:
             # Prepare notification message
@@ -268,33 +268,38 @@ class ObjectDetector:
             message += f"Caption: {detection_result.caption}\n"
             message += f"\nTimestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             
-            # Send message to each user in the notify list
-            for user_id in self.config['telegram']['notify_users']:
-                try:
-                    # Skip sending notification to the user who requested it if specified
-                    if requested_by and user_id == requested_by:
-                        continue
+            # If notify_all is False, only send to the requester
+            if not notify_all and requested_by:
+                # Skip the notification loop for other users - we'll handle the requester separately below
+                pass
+            else:
+                # Send message to each user in the notify list
+                for user_id in self.config['telegram']['notify_users']:
+                    try:
+                        # Skip sending notification to the user who requested it if specified
+                        if requested_by and user_id == requested_by:
+                            continue
                         
-                    logger.info(f"Sending notification to user ID: {user_id}")
-                    
-                    # Send message
-                    self.telegram_bot.send_message(
-                        chat_id=user_id,
-                        text=message,
-                        parse_mode=ParseMode.MARKDOWN
-                    )
-                    
-                    # Send image if available
-                    if image_path:
-                        with open(image_path, 'rb') as photo:
-                            self.telegram_bot.send_photo(
-                                chat_id=user_id,
-                                photo=photo
-                            )
-                    
-                    logger.info(f"Notification sent to user ID: {user_id}")
-                except Exception as e:
-                    logger.error(f"Failed to send notification to user ID {user_id}: {e}")
+                        logger.info(f"Sending notification to user ID: {user_id}")
+                        
+                        # Send message
+                        self.telegram_bot.send_message(
+                            chat_id=user_id,
+                            text=message,
+                            parse_mode=ParseMode.MARKDOWN
+                        )
+                        
+                        # Send image if available
+                        if image_path:
+                            with open(image_path, 'rb') as photo:
+                                self.telegram_bot.send_photo(
+                                    chat_id=user_id,
+                                    photo=photo
+                                )
+                        
+                        logger.info(f"Notification sent to user ID: {user_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to send notification to user ID {user_id}: {e}")
                     
             # If this was a manual detection, also send a response to the requester
             if requested_by:
@@ -373,7 +378,11 @@ class ObjectDetector:
         if detection_result.object_detected:
             # Send notification
             logger.info(f"{detection_result.trigger_word} detected! Sending notifications...")
-            self.send_telegram_notification(detection_result, image_path, requested_by)
+            # If this is an explicit request, only notify the requester
+            if explicit_request and requested_by:
+                self.send_telegram_notification(detection_result, image_path, requested_by, notify_all=False)
+            else:
+                self.send_telegram_notification(detection_result, image_path, requested_by, notify_all=True)
         else:
             logger.info("No trigger words detected in the image.")
             
